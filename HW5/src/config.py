@@ -37,7 +37,7 @@ COCO_CATEGORY_IDS = (
 # ============================================================================
 # Backbone & Image Preprocessing
 # ============================================================================
-MODEL_NAME = "darknet53.c2ns_in1k"
+MODEL_NAME = "convnext_large.fb_in1k"
 YOLO_IMG_DIM = 416
 GRID_SIZES = tuple(YOLO_IMG_DIM // stride for stride in (32, 16, 8))
 IMG_MEAN = (0.485, 0.456, 0.406)
