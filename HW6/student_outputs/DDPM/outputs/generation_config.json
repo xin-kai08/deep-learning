@@ -1,12 +1,13 @@
 {
   "archive": "images.zip",
-  "archive_sha256": "101984fd8d3a456fd50597bed5ada1bd196d4bc09a01252a89d6017e3c60edce",
+  "archive_sha256": "e227264da917bc80ebde59d9d717604884d9ee5ab2943aaa93db13eae1135dc2",
   "archive_format": "flat sequential fake_XXXXX.png; 8-bit RGB PNG",
   "num_images": 8189,
   "image_size": 64,
   "sampler": "ddim",
   "sampling_steps": 250,
-  "ddim_eta": 0.0,
+  "ddim_eta": 0.3,
+  "flip_tta": false,
   "seed": 12345,
   "sample_batch_size": 32,
   "use_amp": true,
@@ -26,10 +27,10 @@
     "beta_start": 0.0001,
     "beta_end": 0.02
   },
-  "global_step": 102364,
+  "global_step": 204722,
   "dataset_sha256": "4fa3a8a40fe02ce32eb48798da8e9d285667a9c0ef09477e78d0d74c6a7c111f",
-  "ema_weights_sha256": "a8369cbdc8ef328608c4224099656bfba1b4beacd907c8227b594839ded84a6f",
+  "ema_weights_sha256": "eba44c85fadf2cbbd1348dc42c2be2ad399f12c48cd1b4ae95147c4915068b5d",
   "torch_version": "2.7.1+cu118",
   "device": "cuda:0",
-  "seconds": 1209.7196591990069
+  "seconds": 1210.9731136830524
 }

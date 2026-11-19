@@ -42,3 +42,37 @@
 - 僅進行 notebook JSON、Python 語法、關鍵設定、checkpoint/scheduler 接線與輸出契約的靜態/記憶體內檢查。
 - 未啟動或中斷 notebook kernel，未執行訓練、採樣、圖片生成、FID 評估或 ZIP 匯出，也未修改既有 notebook 輸出。
 - **尚未執行修改後的訓練與評估，沒有可宣稱的品質或 FID 改善結果。**
+
+## 2026-11-18（Asia/Taipei）— U-Net 800 epochs 與分層時間步實驗
+
+本次只修改 `Lab6_Unet_studentID.ipynb` 與本 README；DiT、資料集、既有訓練產物、輸出路徑及檔名均未更動。
+
+### 修改前後設定
+
+- 從隨機初始化重新訓練：維持 `resume_checkpoint=None`。
+- epoch：400 → 800。
+- AdamW：維持最高 LR `2e-4`、`betas=(0.9, 0.99)`、矩陣/卷積權重 `weight_decay=1e-4`，bias 與 normalization 等一維參數不衰減。
+- LR schedule：5 epochs warm-up、最低 LR `1e-5` → 10 epochs warm-up、最低 LR `2e-6`；warm-up 後仍按成功的 optimizer step 做 cosine decay。
+- EMA decay 上限：0.9999 → 0.9995；原有依 `global_step` 漸增的 EMA warm-up 保留。
+- timestep：每張圖片獨立均勻抽樣 → 循環式分層均勻抽樣。每個 batch 使用一個 0–999 均勻循環起點與近似等距 offset，再隨機排列；因此每張圖片的邊際分布仍是 0–999 的精確離散均勻分布，且最後不足完整 batch 時會依實際 batch 大小重新分層。
+- 訓練目標仍為普通雜訊預測 MSE；1,000-step linear noise schedule、U-Net 架構、channels、bottleneck attention、batch size 與水平翻轉資料增強不變。
+
+### 採樣選項
+
+- 預設仍為 DDIM 250 steps、`eta=0.3`。
+- 同一 checkpoint 可手動改成 500 steps、`eta=0.0`，或 250 steps、`eta=0.0`；notebook 不會自動連跑多組設定，也不會建立額外 ZIP。
+- 新增預設關閉的 `flip_tta=False`。開啟後，每個採樣時間步會分別預測原圖與水平翻轉圖的雜訊，將後者翻回後平均，再交給原有 DDPM/DDIM reverse step。這只影響採樣，不改訓練、模型架構或 checkpoint 權重。
+- `generation_config.json` 會沿用原路徑並額外記錄 `flip_tta`；ZIP 仍覆寫原本的 `student_outputs/DDPM/images.zip`，規格仍是 8,189 張位於根目錄的 64×64 RGB PNG。
+
+### 修改原因與 checkpoint 相容性
+
+- 延長訓練並降低 cosine 尾端 LR，目的是提供更多後期小幅更新；較短 EMA 記憶（上限 0.9995）能讓 EMA 在此訓練長度下更快跟隨線上模型。這些選擇仍需實驗驗證，不保證 FID 改善。
+- 分層時間步可降低單一 batch 偶然集中在少數噪聲區段的情況，同時不改變每張圖片的均勻時間步邊際分布或 MSE 目標。
+- `training_config` 已納入 800 epochs、最低 LR、EMA 上限及 timestep sampling 名稱；optimizer、scheduler、AMP scaler、RNG 與 DataLoader RNG 仍儲存在原 checkpoint。舊訓練 checkpoint 因設定不同會被相容性檢查拒絕，不會靜默續訓。
+- 本實驗必須由 `resume_checkpoint=None` 從頭訓練。完成後的新 checkpoint 可在完全相同訓練設定下正確續訓；採樣步數、eta 與 flip TTA 不屬於訓練相容性設定，因此可使用同一新 checkpoint 自由調整。
+
+### 驗證結果
+
+- 僅進行 notebook JSON、所有 code cell 語法、LR 端點、分層抽樣邊界/間距/邊際分布推導、flip TTA 接線、checkpoint 狀態與輸出契約的靜態或記憶體內檢查。
+- 未啟動或中斷 notebook kernel，未執行訓練、採樣、圖片生成、ZIP 匯出或 FID 評估，既有 notebook 輸出保留原樣。
+- **尚未執行新訓練與評估，沒有新的生成品質或 FID 結果。**
