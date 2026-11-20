@@ -59,8 +59,8 @@
 
 ### 採樣選項
 
-- 預設仍為 DDIM 250 steps、`eta=0.3`。
-- 同一 checkpoint 可手動改成 500 steps、`eta=0.0`，或 250 steps、`eta=0.0`；notebook 不會自動連跑多組設定，也不會建立額外 ZIP。
+- 預設仍為 DDIM 250 steps、`eta=0.0`。
+- 同一 checkpoint 可手動改成 500 steps、`eta=0.0`，或 250 steps、`eta=0.3`；notebook 不會自動連跑多組設定，也不會建立額外 ZIP。
 - 新增預設關閉的 `flip_tta=False`。開啟後，每個採樣時間步會分別預測原圖與水平翻轉圖的雜訊，將後者翻回後平均，再交給原有 DDPM/DDIM reverse step。這只影響採樣，不改訓練、模型架構或 checkpoint 權重。
 - `generation_config.json` 會沿用原路徑並額外記錄 `flip_tta`；ZIP 仍覆寫原本的 `student_outputs/DDPM/images.zip`，規格仍是 8,189 張位於根目錄的 64×64 RGB PNG。
 
@@ -76,3 +76,28 @@
 - 僅進行 notebook JSON、所有 code cell 語法、LR 端點、分層抽樣邊界/間距/邊際分布推導、flip TTA 接線、checkpoint 狀態與輸出契約的靜態或記憶體內檢查。
 - 未啟動或中斷 notebook kernel，未執行訓練、採樣、圖片生成、ZIP 匯出或 FID 評估，既有 notebook 輸出保留原樣。
 - **尚未執行新訓練與評估，沒有新的生成品質或 FID 結果。**
+
+## 2026-11-20（Asia/Taipei）— U-Net 隨機裁切與正式採樣實驗
+
+本次只修改 `Lab6_Unet_studentID.ipynb` 與本 README；未修改 DiT、`resized_flowers102`、既有訓練產物或任何輸出路徑與檔名。
+
+### 修改內容
+
+- 訓練仍由 `train_model=True`、`resume_checkpoint=None` 從隨機初始化開始，維持 800 epochs、AdamW、最高 LR `2e-4`、10 epochs warm-up、cosine decay 最低 LR `2e-6`、batch size 32 與循環式分層均勻 timestep 抽樣。
+- 在 `ToTensor` 與 `Normalize` 前加入 `RandomApply(p=0.5)` 包住的 `RandomResizedCrop`：`size=64`、`scale=(0.9,1.0)`、`ratio=(0.95,1.05)`、bilinear interpolation、`antialias=True`。原本 `RandomHorizontalFlip(p=0.5)` 保留。
+- U-Net dropout：`0.1` → `0.05`。模型深度、channels、residual blocks 與 bottleneck attention 均未更動。
+- EMA decay 上限維持 `0.9995`，原有依 `global_step` 漸增的 EMA warm-up 保留。
+- 正式生成預設：DDIM 250 steps、`eta=0.3` → DDIM 500 steps、`eta=0.3`；`flip_tta=False`。仍只匯出原本單一 `student_outputs/DDPM/images.zip`。
+- 完整資料增強設定已由實際 transform 共用的 `augmentation_config` 寫入 `training_config`。dropout 位於 `model_config`；因此舊 checkpoint 會因模型或訓練設定不同而被既有相容性檢查拒絕，不能靜默續訓。本實驗必須從頭訓練。
+
+### 修改原因與限制
+
+- 小幅隨機裁切與尺度/長寬比擾動，目的是降低模型對固定構圖與邊界的依賴；裁切機率及範圍受限，以避免大幅破壞花朵內容。dropout 降至 0.05，目的是在新增資料增強後減少重複正則化強度。兩者是否改善 FID 仍須正式實驗，不能保證。
+- 500-step stochastic DDIM 提供較密集的反向更新並以 `eta=0.3` 保留部分隨機性，但生成成本高於 250 steps；實際品質仍須評估。
+- 依助教最新公告完成程式稽核：所有可學習模組均由 notebook 內隨機初始化並只用指定 Flowers102 資料訓練；未載入外部預訓練模型或權重，未加入外部特徵提取器、偽標籤、teacher/知識蒸餾或輔助 loss。訓練目標仍只有普通 DDPM 雜訊預測 MSE。
+
+### 驗證結果
+
+- 僅進行 notebook JSON、所有 code cell 語法、transform 參數與順序、`training_config`/`model_config`、checkpoint 相容性、正式採樣預設、輸出契約，以及外部預訓練/偽標籤/蒸餾/輔助 loss 路徑的靜態或記憶體內檢查。
+- 未啟動或中斷 notebook kernel，未執行資料載入、訓練、採樣、圖片生成、ZIP 匯出或 FID 評估；既有 notebook 輸出保留原樣。
+- **尚未執行本次新訓練與評估，沒有新的生成品質或 FID 結果。**
